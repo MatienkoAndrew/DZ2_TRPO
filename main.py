@@ -7,15 +7,68 @@ import hashlib
 
 
 class Registration(QtWidgets.QDialog):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.ui = RegistrationForm()
         self.ui.setupUi(self)
+        self.backWindow = None
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle("Registration")
+        self.ui.reg_button.clicked.connect(self.registration)
+        self.ui.back_button.clicked.connect(self.back)
     pass
+
+    def registration(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                login = self.ui.loginEdit.text()
+                password_1 = self.ui.passEdit.text()
+                password_2 = self.ui.pass_repeatEdit.text()
+
+                cursor.execute("SELECT login FROM Users")
+                logins = cursor.fetchall()
+                logins = [login[0] for login in logins]
+
+                if login in logins:
+                    print("Логин занят")
+                    return
+                if password_1 != password_2:
+                    print("Пароли не совпадают")
+                    return
+
+                # cursor.execute(f"INSERT INTO Users (login, pass) VALUES('{login}', '{password_1}')")
+                ##-- При создании нового клиента - создается новый портфель
+                cursor.execute(f"""
+                            with new_client as (
+                            INSERT INTO Users (login, pass) VALUES('{login}', '{password_1}')
+                              returning epk_id
+                            )
+                            insert into Portfolios (epk_id, portfolio_name)
+                            values
+                            (
+                              (select epk_id from new_client),
+                              'Portfolio_1'
+                            );
+                            """)
+
+                print("Регистрация прошла успешно")
+                self.ui.loginEdit.clear()
+                self.ui.passEdit.clear()
+                self.ui.pass_repeatEdit.clear()
+                conn.commit()
+                pass
+            pass
+        pass
+
+    def back(self):
+        self.backWindow = MainForm()
+        self.backWindow.show()
+        self.close()
+    pass
+
 
 
 class MainForm(QtWidgets.QDialog):
@@ -30,10 +83,6 @@ class MainForm(QtWidgets.QDialog):
         self.connect()
         self.ui.login_button.clicked.connect(self.check_user)
         self.ui.reg_button.clicked.connect(self.registration)
-
-
-
-
         # self.disconnect()
 
     def connect(self):
@@ -44,40 +93,6 @@ class MainForm(QtWidgets.QDialog):
         self.conn = psycopg2.connect(conn_string)
         self.cursor = self.conn.cursor()
 
-            # with conn.cursor() as cursor:
-                # conn.cursor will return a cursor object, you can use this cursor to perform queries
-
-                # cursor.execute("DELETE FROM Users WHERE login='Nastya'")
-                # cursor.execute("INSERT INTO Users (login, pass) VALUES('Nastya', '1234')")
-
-                ##-- При создании нового клиента - создается новый портфель
-                # cursor.execute("""
-                #             with new_order as (
-                #             insert into Users (login, pass) values ('Nastya', '1234')
-                #               returning epk_id
-                #             )
-                #             insert into Portfolios (epk_id, portfolio_name)
-                #             values
-                #             (
-                #               (select epk_id from new_order),
-                #               'test'
-                #             );
-                #             """)
-                #
-
-                # cursor.execute("""UPDATE Users
-                #                     SET login='Andrew'
-                #                     WHERE login='Nastya'
-                #                 """)
-
-                # execute our Query
-                # cursor.execute("SELECT * FROM Users")
-
-                # retrieve the records from the database
-                # records = cursor.fetchall()
-
-                # print(records)
-                # conn.commit()
 
     def check_user(self):
         login = self.ui.lineEdit.text()
@@ -101,6 +116,8 @@ class MainForm(QtWidgets.QDialog):
         if password_hashed not in passwords_hashed:
             print("Неверный пароль")
             return
+
+        print("Вы успешно вошли")
 
     def registration(self):
         self.Registration = Registration()

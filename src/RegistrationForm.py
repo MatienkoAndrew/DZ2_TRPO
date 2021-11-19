@@ -65,19 +65,19 @@ class RegistrationForm(object):
         self.pass_repeatEdit.setObjectName("lineEdit_2")
 
         ##-- Кнопка регистрации
-        self.login_button = QtWidgets.QPushButton(self.frame)
-        self.login_button.setGeometry(QtCore.QRect(350, 400, 161, 41))
+        self.reg_button = QtWidgets.QPushButton(self.frame)
+        self.reg_button.setGeometry(QtCore.QRect(350, 400, 161, 41))
         font = QtGui.QFont()
         font.setPointSize(14)
-        self.login_button.setFont(font)
-        self.login_button.setStyleSheet("background-color: rgb(0, 170, 0);")
-        self.login_button.setObjectName("pushButton")
+        self.reg_button.setFont(font)
+        self.reg_button.setStyleSheet("background-color: rgb(0, 170, 0);")
+        self.reg_button.setObjectName("pushButton")
 
         ##-- Кнопка вернуться обратно
-        self.reg_button = QtWidgets.QPushButton(self.frame)
-        self.reg_button.setGeometry(QtCore.QRect(220, 400, 101, 41))
-        self.reg_button.setStyleSheet("background-color:#ffff7f; color: rgb(0,0,0);")
-        self.reg_button.setObjectName("self.reg_button")
+        self.back_button = QtWidgets.QPushButton(self.frame)
+        self.back_button.setGeometry(QtCore.QRect(220, 400, 101, 41))
+        self.back_button.setStyleSheet("background-color:#ffff7f; color: rgb(0,0,0);")
+        self.back_button.setObjectName("self.reg_button")
 
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
@@ -89,6 +89,6 @@ class RegistrationForm(object):
         self.label_2.setText(_translate("Dialog", "Введите логин"))
         self.label_3.setText(_translate("Dialog", "Введите пароль"))
         self.pass_repeat.setText(_translate("Dialog", "Повторите пароль"))
-        self.login_button.setText(_translate("Dialog", "Зарегистрироваться"))
-        self.reg_button.setText(_translate("Dialog", "Back"))
+        self.reg_button.setText(_translate("Dialog", "Зарегистрироваться"))
+        self.back_button.setText(_translate("Dialog", "Back"))
 
