@@ -5,6 +5,7 @@ from src.LoginForm import Ui_Dialog
 from src.RegistrationForm import RegistrationForm
 import hashlib
 
+
 class Registration(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
@@ -15,6 +16,7 @@ class Registration(QtWidgets.QDialog):
     def initUI(self):
         self.setWindowTitle("Registration")
     pass
+
 
 class MainForm(QtWidgets.QDialog):
     def __init__(self, parent=None):

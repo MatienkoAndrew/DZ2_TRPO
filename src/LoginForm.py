@@ -67,13 +67,3 @@ class Ui_Dialog(object):
         self.login_button.setText(_translate("Dialog", "Log in"))
         self.reg_button.setText(_translate("Dialog", "Sign up"))
 
-
-# if __name__ == "__main__":
-#     import sys
-#
-#     app = QtWidgets.QApplication(sys.argv)
-#     Dialog = QtWidgets.QDialog()
-#     # ui = Ui_Dialog()
-#     # ui.setupUi(Dialog)
-#     Dialog.show()
-#     sys.exit(app.exec_())

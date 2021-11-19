@@ -4,7 +4,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class RegistrationForm(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        # Dialog.resize(600, 450)
         Dialog.setFixedSize(600, 460)
         Dialog.setStyleSheet("background-color: rgb(0, 170, 255);")
         self.frame = QtWidgets.QFrame(Dialog)
@@ -93,13 +92,3 @@ class RegistrationForm(object):
         self.login_button.setText(_translate("Dialog", "Зарегистрироваться"))
         self.reg_button.setText(_translate("Dialog", "Back"))
 
-
-# if __name__ == "__main__":
-#     import sys
-#
-#     app = QtWidgets.QApplication(sys.argv)
-#     Dialog = QtWidgets.QDialog()
-#     # ui = Ui_Dialog()
-#     # ui.setupUi(Dialog)
-#     Dialog.show()
-#     sys.exit(app.exec_())
