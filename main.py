@@ -11,10 +11,11 @@ global portfolio_name
 portfolio_name = None
 
 class AddPortfolio(QtWidgets.QDialog):
-    def __init__(self, epk_id:int, parent=None):
+    def __init__(self, login:str, epk_id:int, parent=None):
         super().__init__(parent)
         self.ui = AddPortfolioForm()
         self.ui.setupUi(self)
+        self.login = login
         self.epk_id = epk_id
         self.initUI()
         pass
@@ -38,8 +39,16 @@ class AddPortfolio(QtWidgets.QDialog):
                         """)
 
                 conn.commit()
+        self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+        self.Portfolios.show()
         self.close()
         pass
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+        self.Portfolios.show()
+        self.close()
+        event.accept()
     pass
 
 
@@ -50,6 +59,8 @@ class Portfolios(QtWidgets.QDialog):
         self.ui.setupUi(self)
         self.login = login
         self.epk_id = epk_id
+        self.Add = None
+        self.portfolio_del = None
         self.initUI()
         pass
 
@@ -57,7 +68,19 @@ class Portfolios(QtWidgets.QDialog):
         self.setWindowTitle("Portfolios")
         self.output_portfolios()
         self.ui.add_portfolio.clicked.connect(self.add)
-        self.ui.update.clicked.connect(self.output_portfolios)
+        self.portfolio_del.clicked.connect(self.del_portfolio)
+
+    def del_portfolio(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    DELETE FROM Portfolios WHERE portfolio_name='333'
+                """)
+                conn.commit()
+                self.close()
+                self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+                self.Portfolios.show()
 
     def output_portfolios(self):
         conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
@@ -93,16 +116,24 @@ class Portfolios(QtWidgets.QDialog):
                     self.portfolio_btn.setObjectName(f"portfolio_{i}")
                     self.portfolio_btn.setText("Перейти")
 
-                    cursor.execute(f"""
-                        SELECT t2.epk_id FROM Users t1 INNER JOIN Portfolios t2 ON (t1.epk_id=t2.epk_id)
-                        WHERE t1.login='{self.login}' 
-                    """)
 
+                    ##-- Кнопка удаления
+                    self.portfolio_del = QtWidgets.QPushButton(self)
+                    self.portfolio_del.setGeometry(QtCore.QRect(400, 80 + i * 100, 171, 51))
+                    font = QtGui.QFont()
+                    font.setPointSize(14)
+                    self.portfolio_del.setFont(font)
+                    self.portfolio_del.setStyleSheet("background-color: rgb(255, 0, 0); text-decoration:underline;")
+                    self.portfolio_del.setObjectName(f"portfolio_del_{i}")
+                    self.portfolio_del.setText("Удалить")
+                    pass
+                pass
         pass
 
     def add(self):
-        self.Add = AddPortfolio(epk_id=self.epk_id)
+        self.Add = AddPortfolio(login=self.login, epk_id=self.epk_id)
         self.Add.show()
+        self.close()
         pass
     pass
 

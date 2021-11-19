@@ -17,17 +17,6 @@ class PortfoliosForm(object):
         self.add_portfolio.setObjectName("add")
         self.add_portfolio.setText("Добавить портфель")
 
-
-        ##-- Кнопка обновления страницы (для добавления новых портфелей)
-        self.update = QtWidgets.QPushButton(Dialog)
-        self.update.setGeometry(QtCore.QRect(100, 500, 200, 50))
-        font = QtGui.QFont()
-        font.setPointSize(14)
-        self.update.setFont(font)
-        self.update.setStyleSheet("background-color: rgb(255, 0, 255);")
-        self.update.setObjectName("add")
-        self.update.setText("Обновить")
-
     def retranslateUi(self, Dialog):
         pass
 
