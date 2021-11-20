@@ -5,17 +5,192 @@ from src.LoginForm import Ui_Dialog
 from src.RegistrationForm import RegistrationForm
 from src.PortfoliosForm import PortfoliosForm
 from src.AddPortfolioForm import AddPortfolioForm
+from src.AssetsForm import AssetsForm
 import hashlib
 
-global portfolio_name
-portfolio_name = None
 
+##-- Форма списка Акций
+class AssetsListForm(QtWidgets.QDialog):
+    def __init__(self, epk_id:int, portfolio_id:int, parent=None):
+        super().__init__(parent)
+        self.epk_id=epk_id
+        self.portfolio_id=portfolio_id
+        self.asset_dict = dict()
+        self.initUI()
+
+    def initUI(self):
+        self.setObjectName("Dialog")
+        self.resize(500, 300)
+        self.setStyleSheet("background-color: rgb(255, 255, 255);")
+        self.setWindowTitle("AssetsList")
+        self.output_assets()
+
+    def output_assets(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT 
+                        asset_name, price
+                    FROM 
+                        Assets
+		            WHERE 
+                        asset_name NOT IN 
+                            (SELECT 
+                                t4.asset_name
+                             FROM
+                                Users t1
+                            INNER JOIN
+                                Portfolios t2
+                            ON (t1.epk_id=t2.epk_id)
+                            INNER JOIN
+                                Portfolio_to_assets t3
+                            ON (t2.portfolio_id=t3.portfolio_id)
+                            INNER JOIN 
+                                Assets t4
+                            ON (t3.asset_id = t4.asset_id)
+                            WHERE 
+                                t1.epk_id='{self.epk_id}' 
+                                AND t2.portfolio_id='{self.portfolio_id}'
+                    );
+                """)
+                assets = cursor.fetchall()
+
+                ##-- Вывод недоступных акций
+                for i, asset in enumerate(assets):
+                    ##-- Названия актива
+                    self.assetEdit = QtWidgets.QLineEdit(self)
+                    self.assetEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
+                    self.assetEdit.setStyleSheet("color: rgb(0, 0, 0);")
+                    self.assetEdit.setObjectName(f"asset_name_{i}")
+                    self.assetEdit.setText(asset[0])
+                    self.assetEdit.setEnabled(False)
+
+                    ##-- Последняя цена актива
+                    self.priceEdit = QtWidgets.QLineEdit(self)
+                    self.priceEdit.setGeometry(QtCore.QRect(160, 80 + i * 100, 150, 51))
+                    self.priceEdit.setStyleSheet("color: rgb(0, 0, 0);")
+                    self.priceEdit.setObjectName(f"price_{i}")
+                    self.priceEdit.setText(str(asset[1]))
+                    self.priceEdit.setEnabled(False)
+
+                    ##-- Кнопка добавить акцию в портфель
+                    self.add_btn = QtWidgets.QPushButton(self)
+                    self.add_btn.setGeometry(QtCore.QRect(320, 80 + i * 100, 150, 51))
+                    self.add_btn.setStyleSheet("background-color: rgb(0, 170, 0); text-decoration:underline;")
+                    self.add_btn.setObjectName(f"asset_{i}")
+                    self.asset_dict[f"asset_{i}"] = asset[0]
+                    self.add_btn.setText("Добавить")
+                    self.add_btn.setFocus()
+                    self.add_btn.clicked.connect(self.add_to_portfolio)
+                    pass
+                pass
+            pass
+        pass
+
+    def add_to_portfolio(self):
+        click_btn = self.sender()
+        click_btn_obj_name = click_btn.objectName()
+        asset_name = self.asset_dict[click_btn_obj_name]
+        click_btn.setEnabled(False)
+
+        cursor.execute(f"""
+                            INSERT INTO FROM Portfolios WHERE portfolio_name='{portfolio_name}'
+                        """)
+        conn.commit()
+        self.close()
+        self.Portfolios = Portfolios(epk_id=self.epk_id)
+        self.Portfolios.show()
+        pass
+    pass
+
+
+
+
+
+##-- Форма Акции
+class Assets(QtWidgets.QDialog):
+    def __init__(self, epk_id:int, portfolio_id:int, parent=None):
+        super().__init__(parent)
+        self.ui = AssetsForm()
+        self.ui.setupUi(self)
+        self.epk_id=epk_id
+        self.portfolio_id=portfolio_id
+        self.initUI()
+        pass
+
+    def initUI(self):
+        self.setWindowTitle("Assets")
+        self.output_assets()
+        self.ui.add_asset.clicked.connect(self.addForm)
+        self.ui.back_button.clicked.connect(self.back)
+
+
+    def output_assets(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT t4.asset_name, t4.price
+                    FROM
+                      Users t1
+                    INNER JOIN
+                      Portfolios t2
+                    ON (t1.epk_id=t2.epk_id)
+                    INNER JOIN
+                      Portfolio_to_assets t3
+                    ON (t2.portfolio_id=t3.portfolio_id)
+                    INNER JOIN
+                      Assets t4
+                    ON (t3.asset_id = t4.asset_id)
+                    WHERE t1.epk_id='{self.epk_id}' 
+                            AND t2.portfolio_id='{self.portfolio_id}'
+                """)
+                assets = cursor.fetchall()
+                print(assets)
+                tickers = [asset[0] for asset in assets]
+                prices = [price[1] for price in assets]
+                print(tickers)
+                print(prices)
+
+                ##-- Вывод акций в портфеле
+                for i, asset in enumerate(assets):
+                    ##-- Названия актива
+                    self.assetEdit = QtWidgets.QLineEdit(self)
+                    self.assetEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
+                    self.assetEdit.setStyleSheet("color: rgb(0, 0, 0);")
+                    self.assetEdit.setObjectName(f"portfolio_name_{i}")
+                    self.assetEdit.setText(asset[0])
+                    self.assetEdit.setEnabled(False)
+
+                    ##-- Последняя цена актива
+                    self.priceEdit = QtWidgets.QLineEdit(self)
+                    self.priceEdit.setGeometry(QtCore.QRect(160, 80 + i * 100, 150, 51))
+                    self.priceEdit.setStyleSheet("color: rgb(0, 0, 0);")
+                    self.priceEdit.setObjectName(f"portfolio_name_{i}")
+                    self.priceEdit.setText(str(asset[1]))
+                    self.priceEdit.setEnabled(False)
+                    pass
+                pass
+        pass
+
+    ##-- кнопка "Добавить акцию" - переход к форме добавления акции
+    def addForm(self):
+        self.AddForm = AssetsListForm(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
+        self.AddForm.show()
+
+    def back(self):
+        self.Portfolios = Portfolios(epk_id=self.epk_id)
+        self.Portfolios.show()
+        self.close()
+
+
+##-- Форма добавления портфеля
 class AddPortfolio(QtWidgets.QDialog):
-    def __init__(self, login:str, epk_id:int, parent=None):
+    def __init__(self, epk_id:int, parent=None):
         super().__init__(parent)
         self.ui = AddPortfolioForm()
         self.ui.setupUi(self)
-        self.login = login
         self.epk_id = epk_id
         self.initUI()
         pass
@@ -26,7 +201,6 @@ class AddPortfolio(QtWidgets.QDialog):
         pass
 
     def add(self):
-        global portfolio_name
         portfolio_name = self.ui.portfolio_nameEdit.text()
 
         conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
@@ -39,25 +213,25 @@ class AddPortfolio(QtWidgets.QDialog):
                         """)
 
                 conn.commit()
-        self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+        self.Portfolios = Portfolios(epk_id=self.epk_id)
         self.Portfolios.show()
         self.close()
         pass
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+        self.Portfolios = Portfolios(epk_id=self.epk_id)
         self.Portfolios.show()
         self.close()
         event.accept()
     pass
 
 
+##-- Форма Портфели
 class Portfolios(QtWidgets.QDialog):
-    def __init__(self, login:str, epk_id: int, parent=None):
+    def __init__(self, epk_id: int, parent=None):
         super().__init__(parent)
         self.ui = PortfoliosForm()
         self.ui.setupUi(self)
-        self.login = login
         self.epk_id = epk_id
         self.portfolio_del_dict = dict()
         self.portfolio_update_dict = dict()
@@ -69,8 +243,28 @@ class Portfolios(QtWidgets.QDialog):
         self.setWindowTitle("Portfolios")
         self.output_portfolios()
         self.ui.add_portfolio.clicked.connect(self.add)
+        self.ui.back_button.clicked.connect(self.back)
         # self.portfolio_del.clicked.connect(self.del_portfolio)
         # self.portfolio_update.clicked.connect(self.update_portfolio)
+
+    ##-- переход к портфелю
+    def go_portfolio(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                portfolio_name = self.portfolio_go_dict[self.sender().objectName()]
+                cursor.execute(f"""
+                            SELECT portfolio_id 
+                            FROM Portfolios 
+                            WHERE portfolio_name='{portfolio_name}' AND epk_id='{self.epk_id}'
+                        """)
+                portfolio_id = cursor.fetchone()[0]
+                self.close()
+                self.Assets = Assets(epk_id=self.epk_id, portfolio_id=portfolio_id)
+                self.Assets.show()
+                pass
+            pass
+        pass
 
     ##-- удаление портфеля по названию
     def del_portfolio(self):
@@ -85,7 +279,7 @@ class Portfolios(QtWidgets.QDialog):
                 """)
                 conn.commit()
                 self.close()
-                self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+                self.Portfolios = Portfolios(epk_id=self.epk_id)
                 self.Portfolios.show()
 
     ##-- обновление портфеля по названию
@@ -110,7 +304,7 @@ class Portfolios(QtWidgets.QDialog):
                     """)
                     conn.commit()
                     self.close()
-                    self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+                    self.Portfolios = Portfolios(epk_id=self.epk_id)
                     self.Portfolios.show()
 
     def output_portfolios(self):
@@ -119,7 +313,7 @@ class Portfolios(QtWidgets.QDialog):
             with conn.cursor() as cursor:
                 cursor.execute(f"""
                     SELECT portfolio_name FROM Users t1 INNER JOIN Portfolios t2 ON (t1.epk_id=t2.epk_id)
-                    WHERE t1.login='{self.login}' 
+                    WHERE t1.epk_id='{self.epk_id}' 
                 """)
 
                 portfolios = cursor.fetchall()
@@ -168,6 +362,7 @@ class Portfolios(QtWidgets.QDialog):
                     self.portfolio_go_dict[f"portfolio_{i}"] = portfolio
                     self.portfolio_btn.setText("Перейти")
                     self.portfolio_btn.setFocus()
+                    self.portfolio_btn.clicked.connect(self.go_portfolio)
 
                     ##-- Кнопка удаления
                     self.portfolio_del = QtWidgets.QPushButton(self)
@@ -185,8 +380,14 @@ class Portfolios(QtWidgets.QDialog):
         pass
 
     def add(self):
-        self.Add = AddPortfolio(login=self.login, epk_id=self.epk_id)
+        self.Add = AddPortfolio(epk_id=self.epk_id)
         self.Add.show()
+        self.close()
+        pass
+
+    def back(self):
+        self.Main = MainForm()
+        self.Main.show()
         self.close()
         pass
     pass
@@ -309,7 +510,7 @@ class MainForm(QtWidgets.QDialog):
         self.cursor.execute(f"SELECT epk_id FROM Users WHERE login='{login}'")
         epk_id = self.cursor.fetchone()[0]
         ##-- Переход к окну "Портфель"
-        self.Portfolio = Portfolios(login=login, epk_id=epk_id)
+        self.Portfolio = Portfolios(epk_id=epk_id)
         self.Portfolio.show()
         self.close()
 
@@ -338,11 +539,12 @@ if __name__ == "__main__":
 # CREATE TABLE Users (
 # epk_id SERIAL PRIMARY KEY,
 # login TEXT,
-# pass TEXT);
+# pass TEXT
+# );
 
 
 # CREATE TABLE Portfolios (
-# id SERIAL PRIMARY KEY,
+# portfolio_id SERIAL PRIMARY KEY,
 # epk_id INTEGER,
 # portfolio_name TEXT,
 # FOREIGN KEY (epk_id) REFERENCES Users(id)
@@ -350,7 +552,7 @@ if __name__ == "__main__":
 
 
 # CREATE TABLE Assets(
-# assets_id SERIAL PRIMARY KEY,
+# asset_id SERIAL PRIMARY KEY,
 # asset_name TEXT,
 # price Decimal(12,2)
 # );
@@ -358,7 +560,23 @@ if __name__ == "__main__":
 
 # CREATE TABLE Portfolio_to_Assets (
 # id SERIAL PRIMARY KEY,
-# portfolio_id INTEGER, assets_id INTEGER,
-# FOREIGN KEY(portfolio_id) REFERENCES Portfolios (id),
-# FOREIGN KEY(assets_id) REFERENCES Assets (assets_id));
+# portfolio_id INTEGER,
+# asset_id INTEGER,
+# FOREIGN KEY(portfolio_id) REFERENCES Portfolios (portfolio_id),
+# FOREIGN KEY(asset_id) REFERENCES Assets (asset_id));
 # );
+
+##--
+
+# SELECT *  ## t4.asset_name, t4.price
+# FROM
+#   Users t1
+# INNER JOIN
+#   Portfolios t2
+# ON (t1.epk_id=t2.epk_id)
+# INNER JOIN
+#   Portfolio_to_assets t3
+# ON (t2.portfolio_id=t3.portfolio_id)
+# INNER JOIN
+#   Assets t4
+# ON (t3.asset_id = t4.asset_id);
