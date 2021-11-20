@@ -59,8 +59,9 @@ class Portfolios(QtWidgets.QDialog):
         self.ui.setupUi(self)
         self.login = login
         self.epk_id = epk_id
-        self.Add = None
-        self.portfolio_del = None
+        self.portfolio_del_dict = dict()
+        self.portfolio_update_dict = dict()
+        self.portfolio_go_dict = dict()
         self.initUI()
         pass
 
@@ -68,19 +69,49 @@ class Portfolios(QtWidgets.QDialog):
         self.setWindowTitle("Portfolios")
         self.output_portfolios()
         self.ui.add_portfolio.clicked.connect(self.add)
-        self.portfolio_del.clicked.connect(self.del_portfolio)
+        # self.portfolio_del.clicked.connect(self.del_portfolio)
+        # self.portfolio_update.clicked.connect(self.update_portfolio)
 
+    ##-- удаление портфеля по названию
     def del_portfolio(self):
         conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
         with closing(psycopg2.connect(conn_string)) as conn:
             with conn.cursor() as cursor:
+
+                portfolio_name = self.portfolio_del_dict[self.sender().objectName()]
+
                 cursor.execute(f"""
-                    DELETE FROM Portfolios WHERE portfolio_name='333'
+                    DELETE FROM Portfolios WHERE portfolio_name='{portfolio_name}'
                 """)
                 conn.commit()
                 self.close()
                 self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
                 self.Portfolios.show()
+
+    ##-- обновление портфеля по названию
+    def update_portfolio(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                ##-- Объектное имя кнопки "Обновить", на которю мы нажимаем
+                portfolio_update_object_name = self.sender().objectName()
+                idx_portfolio = ''.join(filter(str.isdigit, portfolio_update_object_name))
+                ##-- Выводим текст, который отображается в lineEdit у портфеля (после нажатия кнопки обновить)
+                portfolio_new_name = self.findChild(QtWidgets.QLineEdit, f"portfolio_name_{idx_portfolio}").text()
+                ##-- Предыдущее название портфеля (хранится в словаре)
+                portfolio_old_name = self.portfolio_update_dict[self.sender().objectName()]
+
+                if portfolio_new_name.strip() != portfolio_old_name.strip():
+                    cursor.execute(f"""
+                        UPDATE Portfolios
+                        SET portfolio_name = '{portfolio_new_name}'
+                        WHERE portfolio_name='{portfolio_old_name}'
+                                AND epk_id='{self.epk_id}'
+                    """)
+                    conn.commit()
+                    self.close()
+                    self.Portfolios = Portfolios(login=self.login, epk_id=self.epk_id)
+                    self.Portfolios.show()
 
     def output_portfolios(self):
         conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
@@ -97,35 +128,58 @@ class Portfolios(QtWidgets.QDialog):
                 ##-- Вывод портфелей
                 for i, portfolio in enumerate(portfolios):
                     ##-- Названия портфелей
-                    self.label = QtWidgets.QLabel(self)
-                    self.label.setGeometry(QtCore.QRect(0, 80 + i * 100, 171, 51))
+                    # self.label = QtWidgets.QLabel(self)
+                    # self.label.setGeometry(QtCore.QRect(0, 80 + i * 100, 171, 51))
+                    # font = QtGui.QFont()
+                    # font.setPointSize(16)
+                    # self.label.setFont(font)
+                    # self.label.setStyleSheet("color: rgb(0, 0, 0);")
+                    # self.label.setObjectName(f"portfolio_name_{i}")
+                    # self.label.setText(portfolio)
+
+                    ##-- Названия портфелей
+                    self.portfolioEdit = QtWidgets.QLineEdit(self)
+                    self.portfolioEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
+                    self.portfolioEdit.setStyleSheet("color: rgb(0, 0, 0);")
+                    self.portfolioEdit.setObjectName(f"portfolio_name_{i}")
+                    self.portfolioEdit.setText(portfolio)
+                    # self.portfolioEdit.setEnabled(False)
+
+                    ##-- Обновление названий
+                    self.portfolio_update = QtWidgets.QPushButton(self)
+                    self.portfolio_update.setGeometry(QtCore.QRect(160, 80 + i * 100, 100, 51))
                     font = QtGui.QFont()
-                    font.setPointSize(16)
-                    self.label.setFont(font)
-                    self.label.setStyleSheet("color: rgb(0, 0, 0);")
-                    self.label.setObjectName(f"portfolio_name_{i}")
-                    self.label.setText(portfolio)
+                    font.setPointSize(14)
+                    self.portfolio_update.setFont(font)
+                    self.portfolio_update.setStyleSheet("background-color: rgb(0, 100, 0); text-decoration:underline;")
+                    self.portfolio_update.setObjectName(f"portfolio_update_{i}")
+                    self.portfolio_update_dict[f"portfolio_update_{i}"] = portfolio
+                    self.portfolio_update.setText("Обновить")
+                    self.portfolio_update.clicked.connect(self.update_portfolio)
 
                     ##-- Переход к портфелям
                     self.portfolio_btn = QtWidgets.QPushButton(self)
-                    self.portfolio_btn.setGeometry(QtCore.QRect(200, 80 + i * 100, 171, 51))
+                    self.portfolio_btn.setGeometry(QtCore.QRect(270, 80 + i * 100, 171, 51))
                     font = QtGui.QFont()
                     font.setPointSize(14)
                     self.portfolio_btn.setFont(font)
                     self.portfolio_btn.setStyleSheet("background-color: rgb(0, 170, 0); text-decoration:underline;")
                     self.portfolio_btn.setObjectName(f"portfolio_{i}")
+                    self.portfolio_go_dict[f"portfolio_{i}"] = portfolio
                     self.portfolio_btn.setText("Перейти")
-
+                    self.portfolio_btn.setFocus()
 
                     ##-- Кнопка удаления
                     self.portfolio_del = QtWidgets.QPushButton(self)
-                    self.portfolio_del.setGeometry(QtCore.QRect(400, 80 + i * 100, 171, 51))
+                    self.portfolio_del.setGeometry(QtCore.QRect(450, 80 + i * 100, 171, 51))
                     font = QtGui.QFont()
                     font.setPointSize(14)
                     self.portfolio_del.setFont(font)
                     self.portfolio_del.setStyleSheet("background-color: rgb(255, 0, 0); text-decoration:underline;")
                     self.portfolio_del.setObjectName(f"portfolio_del_{i}")
+                    self.portfolio_del_dict[f"portfolio_del_{i}"] = portfolio
                     self.portfolio_del.setText("Удалить")
+                    self.portfolio_del.clicked.connect(self.del_portfolio)
                     pass
                 pass
         pass
