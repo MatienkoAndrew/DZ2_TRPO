@@ -94,14 +94,26 @@ class AssetsListForm(QtWidgets.QDialog):
         asset_name = self.asset_dict[click_btn_obj_name]
         click_btn.setEnabled(False)
 
-        cursor.execute(f"""
-                            INSERT INTO FROM Portfolios WHERE portfolio_name='{portfolio_name}'
-                        """)
-        conn.commit()
-        self.close()
-        self.Portfolios = Portfolios(epk_id=self.epk_id)
-        self.Portfolios.show()
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    INSERT INTO Portfolio_to_assets (portfolio_id, asset_id)
+                    VALUES ('{self.portfolio_id}', (SELECT asset_id FROM Assets WHERE asset_name='{asset_name}'))
+                                """)
+                conn.commit()
+        # self.close()
+        # self.Portfolios = Portfolios(epk_id=self.epk_id)
+        # self.Portfolios.show()
         pass
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        app = QtGui.QGuiApplication.instance()
+        app.closeAllWindows()
+        self.OpenAssetsForm = Assets(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
+        self.OpenAssetsForm.show()
+        self.close()
+        event.accept()
     pass
 
 
