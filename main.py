@@ -10,221 +10,6 @@ import hashlib
 from peewee import *
 
 
-##-- Форма списка Акций
-class AssetsListForm(QtWidgets.QDialog):
-    def __init__(self, epk_id:int, portfolio_id:int, parent=None):
-        super().__init__(parent)
-        self.epk_id=epk_id
-        self.portfolio_id=portfolio_id
-        self.asset_dict = dict()
-        self.initUI()
-
-    def initUI(self):
-        self.setObjectName("Dialog")
-        self.resize(500, 300)
-        self.setStyleSheet("background-color: rgb(255, 255, 255);")
-        self.setWindowTitle("AssetsList")
-        self.output_assets()
-
-    def output_assets(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(f"""
-                    SELECT 
-                        asset_name, price
-                    FROM 
-                        Assets
-		            WHERE 
-                        asset_name NOT IN 
-                            (SELECT 
-                                t4.asset_name
-                             FROM
-                                Users t1
-                            INNER JOIN
-                                Portfolios t2
-                            ON (t1.epk_id=t2.epk_id)
-                            INNER JOIN
-                                Portfolio_to_assets t3
-                            ON (t2.portfolio_id=t3.portfolio_id)
-                            INNER JOIN 
-                                Assets t4
-                            ON (t3.asset_id = t4.asset_id)
-                            WHERE 
-                                t1.epk_id='{self.epk_id}' 
-                                AND t2.portfolio_id='{self.portfolio_id}'
-                    );
-                """)
-                assets = cursor.fetchall()
-
-                ##-- Вывод недоступных акций
-                for i, asset in enumerate(assets):
-                    ##-- Названия актива
-                    self.assetEdit = QtWidgets.QLineEdit(self)
-                    self.assetEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
-                    self.assetEdit.setStyleSheet("color: rgb(0, 0, 0);")
-                    self.assetEdit.setObjectName(f"asset_name_{i}")
-                    self.assetEdit.setText(asset[0])
-                    self.assetEdit.setEnabled(False)
-
-                    ##-- Последняя цена актива
-                    self.priceEdit = QtWidgets.QLineEdit(self)
-                    self.priceEdit.setGeometry(QtCore.QRect(160, 80 + i * 100, 150, 51))
-                    self.priceEdit.setStyleSheet("color: rgb(0, 0, 0);")
-                    self.priceEdit.setObjectName(f"price_{i}")
-                    self.priceEdit.setText(str(asset[1]))
-                    self.priceEdit.setEnabled(False)
-
-                    ##-- Кнопка добавить акцию в портфель
-                    self.add_btn = QtWidgets.QPushButton(self)
-                    self.add_btn.setGeometry(QtCore.QRect(320, 80 + i * 100, 150, 51))
-                    self.add_btn.setStyleSheet("background-color: rgb(0, 170, 0); text-decoration:underline;")
-                    self.add_btn.setObjectName(f"asset_{i}")
-                    self.asset_dict[f"asset_{i}"] = asset[0]
-                    self.add_btn.setText("Добавить")
-                    self.add_btn.setFocus()
-                    self.add_btn.clicked.connect(self.add_to_portfolio)
-                    pass
-                pass
-            pass
-        pass
-
-    def add_to_portfolio(self):
-        click_btn = self.sender()
-        click_btn_obj_name = click_btn.objectName()
-        asset_name = self.asset_dict[click_btn_obj_name]
-        click_btn.setEnabled(False)
-
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(f"""
-                    INSERT INTO Portfolio_to_assets (portfolio_id, asset_id)
-                    VALUES ('{self.portfolio_id}', (SELECT asset_id FROM Assets WHERE asset_name='{asset_name}'))
-                                """)
-                conn.commit()
-        pass
-
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        app = QtGui.QGuiApplication.instance()
-        app.closeAllWindows()
-        self.OpenAssetsForm = Assets(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
-        self.OpenAssetsForm.show()
-        self.close()
-        event.accept()
-    pass
-
-
-
-
-
-##-- Форма Акции
-class Assets(QtWidgets.QDialog):
-    def __init__(self, epk_id:int, portfolio_id:int, parent=None):
-        super().__init__(parent)
-        self.ui = AssetsForm()
-        self.ui.setupUi(self)
-        self.epk_id=epk_id
-        self.portfolio_id=portfolio_id
-        self.asset_del_dict = dict()
-        self.initUI()
-        pass
-
-    def initUI(self):
-        self.setWindowTitle("Assets")
-        self.output_assets()
-        self.ui.add_asset.clicked.connect(self.addForm)
-        self.ui.back_button.clicked.connect(self.back)
-
-
-    def output_assets(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(f"""
-                    SELECT t4.asset_name, t4.price
-                    FROM
-                      Users t1
-                    INNER JOIN
-                      Portfolios t2
-                    ON (t1.epk_id=t2.epk_id)
-                    INNER JOIN
-                      Portfolio_to_assets t3
-                    ON (t2.portfolio_id=t3.portfolio_id)
-                    INNER JOIN
-                      Assets t4
-                    ON (t3.asset_id = t4.asset_id)
-                    WHERE t1.epk_id='{self.epk_id}' 
-                            AND t2.portfolio_id='{self.portfolio_id}'
-                """)
-                assets = cursor.fetchall()
-                print(assets)
-                tickers = [asset[0] for asset in assets]
-                prices = [price[1] for price in assets]
-                print(tickers)
-                print(prices)
-
-                ##-- Вывод акций в портфеле
-                for i, asset in enumerate(assets):
-                    ##-- Названия актива
-                    self.assetEdit = QtWidgets.QLineEdit(self)
-                    self.assetEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
-                    self.assetEdit.setStyleSheet("color: rgb(0, 0, 0);")
-                    self.assetEdit.setObjectName(f"portfolio_name_{i}")
-                    self.assetEdit.setText(asset[0])
-                    self.assetEdit.setEnabled(False)
-
-                    ##-- Последняя цена актива
-                    self.priceEdit = QtWidgets.QLineEdit(self)
-                    self.priceEdit.setGeometry(QtCore.QRect(160, 80 + i * 100, 150, 51))
-                    self.priceEdit.setStyleSheet("color: rgb(0, 0, 0);")
-                    self.priceEdit.setObjectName(f"portfolio_name_{i}")
-                    self.priceEdit.setText(str(asset[1]))
-                    self.priceEdit.setEnabled(False)
-
-                    ##-- Кнопка удаления актива из портфеля
-                    self.asset_del = QtWidgets.QPushButton(self)
-                    self.asset_del.setGeometry(QtCore.QRect(320, 80 + i * 100, 150, 51))
-                    self.asset_del.setStyleSheet("background-color: rgb(255, 20, 20); text-decoration:underline;")
-                    self.asset_del.setObjectName(f"asset_del_{i}")
-                    self.asset_del_dict[f"asset_del_{i}"] = asset[0]
-                    self.asset_del.setText("Удалить")
-                    self.asset_del.clicked.connect(self.del_asset)
-                    pass
-                pass
-            pass
-        pass
-
-    def del_asset(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                asset_name = self.asset_del_dict[self.sender().objectName()]
-                cursor.execute(f"""SELECT asset_id FROM Assets WHERE asset_name='{asset_name}'""")
-                asset_id = cursor.fetchone()[0]
-                cursor.execute(f"""
-                            DELETE FROM Portfolio_to_assets 
-                            WHERE asset_id='{asset_id}' AND portfolio_id='{self.portfolio_id}'
-                        """)
-                conn.commit()
-                self.close()
-                self.Assets = Assets(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
-                self.Assets.show()
-
-        pass
-
-    ##-- кнопка "Добавить акцию" - переход к форме добавления акции
-    def addForm(self):
-        self.AddForm = AssetsListForm(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
-        self.AddForm.show()
-        pass
-
-    def back(self):
-        self.Portfolios = Portfolios(epk_id=self.epk_id)
-        self.Portfolios.show()
-        self.close()
-        pass
-    pass
 
 class BaseModel(Model):
     class Meta:
@@ -233,16 +18,64 @@ class BaseModel(Model):
         pass
     pass
 
-class User(BaseModel):
-    epk_id = None # AutoField(column_name='epk_id')
-    login = None # TextField(column_name='login')
-    password = None # TextField(column_name='pass')
+
+class UserRecord(BaseModel):
+    def __init__(self):
+        self.epk_id = None # AutoField(column_name='epk_id')
+        self.login = None # TextField(column_name='login')
+        self.password = None # TextField(column_name='pass')
 
     class Meta:
         table_name = 'Users'
 
+    def select_logins(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT login FROM Users")
+                logins = cursor.fetchall()
+        logins = [login[0] for login in logins]
+        return logins
 
-class Portfolio(BaseModel):
+    def select_password(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"SELECT pass FROM Users WHERE login='{self.login}'")
+                password = cursor.fetchone()[0]
+        return password
+
+    def select_epk_id(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"SELECT epk_id FROM Users WHERE login='{self.login}'")
+                epk_id = cursor.fetchone()[0]
+        return epk_id
+
+    def create_user(self):
+        ##-- При создании нового клиента - создается новый портфель
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    with new_client as (
+                    INSERT INTO Users (login, pass) VALUES('{self.login}', '{self.password}')
+                      returning epk_id
+                    )
+                    insert into Portfolios (epk_id, portfolio_name)
+                    values
+                    (
+                      (select epk_id from new_client),
+                      'Portfolio_1'
+                    );
+                """)
+                conn.commit()
+        return
+    pass
+
+
+class PortfolioRecord(BaseModel):
     def __init__(self):
         self.portfolio_id = None #AutoField(column_name='portfolio_id')
         self.epk_id = None #ForeignKeyField(User, column_name='epk_id')
@@ -319,6 +152,276 @@ class Portfolio(BaseModel):
     pass
 
 
+class AssetsRecord(BaseModel):
+    class Meta:
+        table_name = 'Assets'
+        pass
+
+    def __init__(self):
+        self.asset_id = None # AutoField()
+        self.asset_name = None # TextField()
+        self.price = None # DecimalField()
+        pass
+
+    ##-- select
+    def get_assets(self, epk_id, portfolio_id):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT t4.asset_name, t4.price
+                    FROM
+                      Users t1
+                    INNER JOIN
+                      Portfolios t2
+                    ON (t1.epk_id=t2.epk_id)
+                    INNER JOIN
+                      Portfolio_to_assets t3
+                    ON (t2.portfolio_id=t3.portfolio_id)
+                    INNER JOIN
+                      Assets t4
+                    ON (t3.asset_id = t4.asset_id)
+                    WHERE t1.epk_id='{epk_id}' 
+                            AND t2.portfolio_id='{portfolio_id}'
+                """)
+                assets = cursor.fetchall()
+        return assets
+
+    ##-- select
+    def get_asset_id(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""SELECT asset_id FROM Assets WHERE asset_name='{self.asset_name}'""")
+                asset_id = cursor.fetchone()[0]
+        return asset_id
+
+    def get_locked_assets(self, epk_id, portfolio_id):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT 
+                        asset_name, price
+                    FROM 
+                        Assets
+                    WHERE 
+                        asset_name NOT IN 
+                            (SELECT 
+                                t4.asset_name
+                             FROM
+                                Users t1
+                            INNER JOIN
+                                Portfolios t2
+                            ON (t1.epk_id=t2.epk_id)
+                            INNER JOIN
+                                Portfolio_to_assets t3
+                            ON (t2.portfolio_id=t3.portfolio_id)
+                            INNER JOIN 
+                                Assets t4
+                            ON (t3.asset_id = t4.asset_id)
+                            WHERE 
+                                t1.epk_id='{epk_id}' 
+                                AND t2.portfolio_id='{portfolio_id}'
+                    );
+            """)
+                assets = cursor.fetchall()
+        return assets
+    pass
+
+
+class Portfolio_to_assets_Record(BaseModel):
+    class Meta:
+        table_name = 'Portfolio_to_assets'
+        pass
+
+    def __init__(self):
+        self.id_ = None # AutoField()
+        self.portfolio_id = None # ForeignKeyField(Portfolio)
+        self.asset_id = None # ForeignKeyField(AssetsRecord)
+        pass
+
+    ##-- delete
+    def delete_asset(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    DELETE FROM Portfolio_to_assets 
+                    WHERE asset_id='{self.asset_id}' AND portfolio_id='{self.portfolio_id}'
+                """)
+                conn.commit()
+        return
+
+    ##-- insert
+    def create_asset(self, asset_name):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    INSERT INTO Portfolio_to_assets (portfolio_id, asset_id)
+                    VALUES ('{self.portfolio_id}', (SELECT asset_id FROM Assets WHERE asset_name='{asset_name}'))
+                """)
+                conn.commit()
+        return
+    pass
+
+
+##-- Форма списка Акций
+class AssetsListForm(QtWidgets.QDialog):
+    def __init__(self, epk_id:int, portfolio_id:int, parent=None):
+        super().__init__(parent)
+        self.epk_id=epk_id
+        self.portfolio_id=portfolio_id
+        self.asset_dict = dict()
+        self.initUI()
+
+    def initUI(self):
+        self.setObjectName("Dialog")
+        self.resize(500, 300)
+        self.setStyleSheet("background-color: rgb(255, 255, 255);")
+        self.setWindowTitle("AssetsList")
+        self.output_assets()
+
+    def output_assets(self):
+        AssetClass = AssetsRecord()
+        assets = AssetClass.get_locked_assets(self.epk_id, self.portfolio_id)
+
+        ##-- Вывод недоступных акций
+        for i, asset in enumerate(assets):
+            ##-- Названия актива
+            self.assetEdit = QtWidgets.QLineEdit(self)
+            self.assetEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
+            self.assetEdit.setStyleSheet("color: rgb(0, 0, 0);")
+            self.assetEdit.setObjectName(f"asset_name_{i}")
+            self.assetEdit.setText(asset[0])
+            self.assetEdit.setEnabled(False)
+
+            ##-- Последняя цена актива
+            self.priceEdit = QtWidgets.QLineEdit(self)
+            self.priceEdit.setGeometry(QtCore.QRect(160, 80 + i * 100, 150, 51))
+            self.priceEdit.setStyleSheet("color: rgb(0, 0, 0);")
+            self.priceEdit.setObjectName(f"price_{i}")
+            self.priceEdit.setText(str(asset[1]))
+            self.priceEdit.setEnabled(False)
+
+            ##-- Кнопка добавить акцию в портфель
+            self.add_btn = QtWidgets.QPushButton(self)
+            self.add_btn.setGeometry(QtCore.QRect(320, 80 + i * 100, 150, 51))
+            self.add_btn.setStyleSheet("background-color: rgb(0, 170, 0); text-decoration:underline;")
+            self.add_btn.setObjectName(f"asset_{i}")
+            self.asset_dict[f"asset_{i}"] = asset[0]
+            self.add_btn.setText("Добавить")
+            self.add_btn.setFocus()
+            self.add_btn.clicked.connect(self.add_to_portfolio)
+            pass
+        pass
+
+    def add_to_portfolio(self):
+        click_btn = self.sender()
+        click_btn_obj_name = click_btn.objectName()
+        asset_name = self.asset_dict[click_btn_obj_name]
+        click_btn.setEnabled(False)
+
+        ##-- ActiveRecord
+        Portfolio_to_assets_Class = Portfolio_to_assets_Record()
+        Portfolio_to_assets_Class.portfolio_id = self.portfolio_id
+        Portfolio_to_assets_Class.create_asset(asset_name)
+        pass
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        app = QtGui.QGuiApplication.instance()
+        app.closeAllWindows()
+        self.OpenAssetsForm = Assets(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
+        self.OpenAssetsForm.show()
+        self.close()
+        event.accept()
+    pass
+
+
+##-- Форма Акции
+class Assets(QtWidgets.QDialog):
+    def __init__(self, epk_id:int, portfolio_id:int, parent=None):
+        super().__init__(parent)
+        self.ui = AssetsForm()
+        self.ui.setupUi(self)
+        self.epk_id=epk_id
+        self.portfolio_id=portfolio_id
+        self.asset_del_dict = dict()
+        self.initUI()
+        pass
+
+    def initUI(self):
+        self.setWindowTitle("Assets")
+        self.output_assets()
+        self.ui.add_asset.clicked.connect(self.addForm)
+        self.ui.back_button.clicked.connect(self.back)
+
+    def output_assets(self):
+        ##-- ActiveRecord
+        AssetClass = AssetsRecord()
+        assets = AssetClass.get_assets(self.epk_id, self.portfolio_id)
+
+        ##-- Вывод акций в портфеле
+        for i, asset in enumerate(assets):
+            ##-- Названия актива
+            self.assetEdit = QtWidgets.QLineEdit(self)
+            self.assetEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
+            self.assetEdit.setStyleSheet("color: rgb(0, 0, 0);")
+            self.assetEdit.setObjectName(f"portfolio_name_{i}")
+            self.assetEdit.setText(asset[0])
+            self.assetEdit.setEnabled(False)
+
+            ##-- Последняя цена актива
+            self.priceEdit = QtWidgets.QLineEdit(self)
+            self.priceEdit.setGeometry(QtCore.QRect(160, 80 + i * 100, 150, 51))
+            self.priceEdit.setStyleSheet("color: rgb(0, 0, 0);")
+            self.priceEdit.setObjectName(f"portfolio_name_{i}")
+            self.priceEdit.setText(str(asset[1]))
+            self.priceEdit.setEnabled(False)
+
+            ##-- Кнопка удаления актива из портфеля
+            self.asset_del = QtWidgets.QPushButton(self)
+            self.asset_del.setGeometry(QtCore.QRect(320, 80 + i * 100, 150, 51))
+            self.asset_del.setStyleSheet("background-color: rgb(255, 20, 20); text-decoration:underline;")
+            self.asset_del.setObjectName(f"asset_del_{i}")
+            self.asset_del_dict[f"asset_del_{i}"] = asset[0]
+            self.asset_del.setText("Удалить")
+            self.asset_del.clicked.connect(self.del_asset)
+            pass
+        pass
+
+    def del_asset(self):
+        ##-- ActiveRecord
+        AssetClass = AssetsRecord()
+        AssetClass.asset_name = self.asset_del_dict[self.sender().objectName()]
+        asset_id = AssetClass.get_asset_id()
+
+        ##-- ActiveRecord
+        Portfolio_to_assets_Class = Portfolio_to_assets_Record()
+        Portfolio_to_assets_Class.asset_id = asset_id
+        Portfolio_to_assets_Class.portfolio_id = self.portfolio_id
+        Portfolio_to_assets_Class.delete_asset()
+
+        self.close()
+        self.Assets = Assets(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
+        self.Assets.show()
+
+        pass
+
+    ##-- кнопка "Добавить акцию" - переход к форме добавления акции
+    def addForm(self):
+        self.AddForm = AssetsListForm(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
+        self.AddForm.show()
+        pass
+
+    def back(self):
+        self.Portfolios = Portfolios(epk_id=self.epk_id)
+        self.Portfolios.show()
+        self.close()
+        pass
+    pass
+
 
 ##-- Форма добавления портфеля
 class AddPortfolio(QtWidgets.QDialog):
@@ -336,7 +439,7 @@ class AddPortfolio(QtWidgets.QDialog):
         pass
 
     def add(self):
-        portfolio_class = Portfolio()
+        portfolio_class = PortfolioRecord()
         portfolio_class.epk_id = self.epk_id
         portfolio_class.portfolio_name = self.ui.portfolio_nameEdit.text()
         portfolio_class.insert_portfolio()
@@ -375,7 +478,7 @@ class Portfolios(QtWidgets.QDialog):
     ##-- переход к портфелю
     def go_portfolio(self):
         ##-- Active Record
-        portfolio_class = Portfolio()
+        portfolio_class = PortfolioRecord()
         portfolio_class.epk_id = self.epk_id
         portfolio_class.portfolio_name = self.portfolio_go_dict[self.sender().objectName()]
         portfolio_id = portfolio_class.get_portfolio_id()
@@ -388,7 +491,7 @@ class Portfolios(QtWidgets.QDialog):
     ##-- удаление портфеля по названию
     def del_portfolio(self):
         ##-- Active Record
-        portfolio_class = Portfolio()
+        portfolio_class = PortfolioRecord()
         portfolio_class.portfolio_name = self.portfolio_del_dict[self.sender().objectName()]
         portfolio_class.delete_portfolio()
         self.close()
@@ -398,7 +501,7 @@ class Portfolios(QtWidgets.QDialog):
     ##-- обновление портфеля по названию
     def update_portfolio(self):
         ##-- Active Record
-        portfolio_class = Portfolio()
+        portfolio_class = PortfolioRecord()
         portfolio_class.epk_id = self.epk_id
         portfolio_class.portfolio_name = self.portfolio_update_dict[self.sender().objectName()]
         portfolio_id = portfolio_class.get_portfolio_id()
@@ -417,7 +520,7 @@ class Portfolios(QtWidgets.QDialog):
 
     def output_portfolios(self):
         ##-- Active Record
-        portfolios_class = Portfolio()
+        portfolios_class = PortfolioRecord()
         portfolios_class.epk_id = self.epk_id
         portfolios = portfolios_class.get_user_portfolios()
 
@@ -498,46 +601,31 @@ class Registration(QtWidgets.QDialog):
     pass
 
     def registration(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                login = self.ui.loginEdit.text()
-                password_1 = self.ui.passEdit.text()
-                password_2 = self.ui.pass_repeatEdit.text()
+        enter_login = self.ui.loginEdit.text()
+        password_1 = self.ui.passEdit.text()
+        password_2 = self.ui.pass_repeatEdit.text()
 
-                cursor.execute("SELECT login FROM Users")
-                logins = cursor.fetchall()
-                logins = [login[0] for login in logins]
+        ##-- Active record
+        User_class = UserRecord()
+        logins = User_class.select_logins()
 
-                if login in logins:
-                    print("Логин занят")
-                    return
-                if password_1 != password_2:
-                    print("Пароли не совпадают")
-                    return
+        if enter_login in logins:
+            QtWidgets.QMessageBox.about(self, "Предупреждение", "Логин занят")
+            return
+        if password_1 != password_2:
+            QtWidgets.QMessageBox.about(self, "Предупреждение", "Пароли не совпадают")
+            return
 
-                # cursor.execute(f"INSERT INTO Users (login, pass) VALUES('{login}', '{password_1}')")
-                ##-- При создании нового клиента - создается новый портфель
-                cursor.execute(f"""
-                            with new_client as (
-                            INSERT INTO Users (login, pass) VALUES('{login}', '{password_1}')
-                              returning epk_id
-                            )
-                            insert into Portfolios (epk_id, portfolio_name)
-                            values
-                            (
-                              (select epk_id from new_client),
-                              'Portfolio_1'
-                            );
-                            """)
+        ##-- Active record
+        User_class.login = enter_login
+        User_class.password = password_1
+        User_class.create_user()
 
-                print("Регистрация прошла успешно")
-                self.ui.loginEdit.clear()
-                self.ui.passEdit.clear()
-                self.ui.pass_repeatEdit.clear()
-                conn.commit()
-                pass
-            pass
+        QtWidgets.QMessageBox.about(self, "Предупреждение", "Регистрация прошла успешно")
+        self.ui.loginEdit.clear()
+        self.ui.passEdit.clear()
+        self.ui.pass_repeatEdit.clear()
+        self.close()
         pass
 
     def back(self):
@@ -561,48 +649,35 @@ class MainForm(QtWidgets.QDialog):
 
     def initUI(self):
         self.setWindowTitle("Login")
-        self.connect()
         self.ui.login_button.clicked.connect(self.check_user)
         self.ui.reg_button.clicked.connect(self.registration)
-        # self.disconnect()
-
-    def connect(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-
-        ##-- get a connection, if a connect cannot be made an exception will be raised here
-        # with closing(psycopg2.connect(conn_string)) as conn:
-        self.conn = psycopg2.connect(conn_string)
-        self.cursor = self.conn.cursor()
-
 
     def check_user(self):
-        login = self.ui.lineEdit.text()
+        enter_login = self.ui.lineEdit.text()
         password = self.ui.lineEdit_2.text()
-        if login == '' and password == '':
+        if enter_login == '' and password == '':
             return
         password_hashed = hashlib.md5(password.encode())
         password_hashed = password_hashed.hexdigest()
-        self.cursor.execute("SELECT login FROM Users")
-        logins = self.cursor.fetchall()
-        logins = [login[0] for login in logins]
 
-        if login not in logins:
-            print("Такого логина нет. Необходимо пройти регистрацию")
+        ##-- Active record
+        User_class = UserRecord()
+        logins = User_class.select_logins()
+        if enter_login not in logins:
+            QtWidgets.QMessageBox.about(self, "Предупреждение", "Такого логина нет. Необходимо пройти регистрацию")
             return
 
-        self.cursor.execute(f"SELECT pass FROM Users WHERE login='{login}'")
-        passwords = self.cursor.fetchall()
-        passwords_hashed = [hashlib.md5(password[0].encode()) for password in passwords]
-        passwords_hashed = [password.hexdigest() for password in passwords_hashed]
+        ##-- Active record
+        User_class.login = enter_login
+        password = User_class.select_password()
+
+        passwords_hashed = hashlib.md5(password.encode()).hexdigest()
         if password_hashed not in passwords_hashed:
-            print("Неверный пароль")
+            QtWidgets.QMessageBox.about(self, "Предупреждение", "Неверный пароль")
             return
 
-        print("Вы успешно вошли")
-
-
-        self.cursor.execute(f"SELECT epk_id FROM Users WHERE login='{login}'")
-        epk_id = self.cursor.fetchone()[0]
+        ##-- Active record
+        epk_id = User_class.select_epk_id()
         ##-- Переход к окну "Портфель"
         self.Portfolio = Portfolios(epk_id=epk_id)
         self.Portfolio.show()
