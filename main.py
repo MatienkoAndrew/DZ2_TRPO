@@ -102,9 +102,6 @@ class AssetsListForm(QtWidgets.QDialog):
                     VALUES ('{self.portfolio_id}', (SELECT asset_id FROM Assets WHERE asset_name='{asset_name}'))
                                 """)
                 conn.commit()
-        # self.close()
-        # self.Portfolios = Portfolios(epk_id=self.epk_id)
-        # self.Portfolios.show()
         pass
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
@@ -128,6 +125,7 @@ class Assets(QtWidgets.QDialog):
         self.ui.setupUi(self)
         self.epk_id=epk_id
         self.portfolio_id=portfolio_id
+        self.asset_del_dict = dict()
         self.initUI()
         pass
 
@@ -182,19 +180,50 @@ class Assets(QtWidgets.QDialog):
                     self.priceEdit.setObjectName(f"portfolio_name_{i}")
                     self.priceEdit.setText(str(asset[1]))
                     self.priceEdit.setEnabled(False)
+
+                    ##-- Кнопка удаления актива из портфеля
+                    self.asset_del = QtWidgets.QPushButton(self)
+                    self.asset_del.setGeometry(QtCore.QRect(320, 80 + i * 100, 150, 51))
+                    self.asset_del.setStyleSheet("background-color: rgb(255, 20, 20); text-decoration:underline;")
+                    self.asset_del.setObjectName(f"asset_del_{i}")
+                    self.asset_del_dict[f"asset_del_{i}"] = asset[0]
+                    self.asset_del.setText("Удалить")
+                    self.asset_del.clicked.connect(self.del_asset)
                     pass
                 pass
+            pass
+        pass
+
+    def del_asset(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                asset_name = self.asset_del_dict[self.sender().objectName()]
+                cursor.execute(f"""SELECT asset_id FROM Assets WHERE asset_name='{asset_name}'""")
+                asset_id = cursor.fetchone()[0]
+                cursor.execute(f"""
+                            DELETE FROM Portfolio_to_assets 
+                            WHERE asset_id='{asset_id}' AND portfolio_id='{self.portfolio_id}'
+                        """)
+                conn.commit()
+                self.close()
+                self.Assets = Assets(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
+                self.Assets.show()
+
         pass
 
     ##-- кнопка "Добавить акцию" - переход к форме добавления акции
     def addForm(self):
         self.AddForm = AssetsListForm(epk_id=self.epk_id, portfolio_id=self.portfolio_id)
         self.AddForm.show()
+        pass
 
     def back(self):
         self.Portfolios = Portfolios(epk_id=self.epk_id)
         self.Portfolios.show()
         self.close()
+        pass
+    pass
 
 
 ##-- Форма добавления портфеля
@@ -580,7 +609,7 @@ if __name__ == "__main__":
 
 ##--
 
-# SELECT *  ## t4.asset_name, t4.price
+# SELECT *
 # FROM
 #   Users t1
 # INNER JOIN
