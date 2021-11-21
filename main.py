@@ -7,6 +7,7 @@ from src.PortfoliosForm import PortfoliosForm
 from src.AddPortfolioForm import AddPortfolioForm
 from src.AssetsForm import AssetsForm
 import hashlib
+from peewee import *
 
 
 ##-- Форма списка Акций
@@ -225,6 +226,99 @@ class Assets(QtWidgets.QDialog):
         pass
     pass
 
+class BaseModel(Model):
+    class Meta:
+        # conn = PostgresqlDatabase('postgres', user='a19053183', password='', host='localhost', port=5432)
+        # database = conn
+        pass
+    pass
+
+class User(BaseModel):
+    epk_id = None # AutoField(column_name='epk_id')
+    login = None # TextField(column_name='login')
+    password = None # TextField(column_name='pass')
+
+    class Meta:
+        table_name = 'Users'
+
+
+class Portfolio(BaseModel):
+    def __init__(self):
+        self.portfolio_id = None #AutoField(column_name='portfolio_id')
+        self.epk_id = None #ForeignKeyField(User, column_name='epk_id')
+        self.portfolio_name = None #TextField(column_name='portfolio_name')
+
+    class Meta:
+        table_name = 'Portfolios'
+
+    ##-- select
+    def get_user_portfolios(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                            SELECT portfolio_name FROM Users t1 
+                            INNER JOIN Portfolios t2 ON (t1.epk_id=t2.epk_id)
+                            WHERE t1.epk_id='{self.epk_id}'
+                        """)
+
+                portfolios = cursor.fetchall()
+        portfolios = [portfolio[0] for portfolio in portfolios]
+        return portfolios
+
+    ##-- select
+    def get_portfolio_id(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT portfolio_id 
+                    FROM Portfolios 
+                    WHERE portfolio_name='{self.portfolio_name}' AND epk_id='{self.epk_id}'
+                """)
+                portfolio_id = cursor.fetchone()[0]
+        return portfolio_id
+
+    ##-- delete
+    def delete_portfolio(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                            DELETE FROM Portfolios WHERE portfolio_name='{self.portfolio_name}'
+                        """)
+                conn.commit()
+        return
+
+    ##-- insert
+    def insert_portfolio(self):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                if self.portfolio_name is not None:
+                    cursor.execute(f"""
+                        INSERT INTO Portfolios (epk_id, portfolio_name) VALUES
+                        ({self.epk_id}, '{self.portfolio_name}')
+                        """)
+                conn.commit()
+        return
+
+    ##-- update
+    def update_portfolio_name(self, portfolio_new_name):
+        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
+        with closing(psycopg2.connect(conn_string)) as conn:
+            with conn.cursor() as cursor:
+                if portfolio_new_name.strip() != self.portfolio_name.strip():
+                    cursor.execute(f"""
+                                UPDATE Portfolios
+                                SET portfolio_name = '{portfolio_new_name}'
+                                WHERE portfolio_id='{self.portfolio_id}'
+                            """)
+                    conn.commit()
+        return
+    pass
+
+
 
 ##-- Форма добавления портфеля
 class AddPortfolio(QtWidgets.QDialog):
@@ -242,18 +336,10 @@ class AddPortfolio(QtWidgets.QDialog):
         pass
 
     def add(self):
-        portfolio_name = self.ui.portfolio_nameEdit.text()
-
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                if portfolio_name is not None:
-                    cursor.execute(f"""
-                        INSERT INTO Portfolios (epk_id, portfolio_name) VALUES
-                        ({self.epk_id}, '{portfolio_name}')
-                        """)
-
-                conn.commit()
+        portfolio_class = Portfolio()
+        portfolio_class.epk_id = self.epk_id
+        portfolio_class.portfolio_name = self.ui.portfolio_nameEdit.text()
+        portfolio_class.insert_portfolio()
         self.Portfolios = Portfolios(epk_id=self.epk_id)
         self.Portfolios.show()
         self.close()
@@ -285,139 +371,102 @@ class Portfolios(QtWidgets.QDialog):
         self.output_portfolios()
         self.ui.add_portfolio.clicked.connect(self.add)
         self.ui.back_button.clicked.connect(self.back)
-        # self.portfolio_del.clicked.connect(self.del_portfolio)
-        # self.portfolio_update.clicked.connect(self.update_portfolio)
 
     ##-- переход к портфелю
     def go_portfolio(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                portfolio_name = self.portfolio_go_dict[self.sender().objectName()]
-                cursor.execute(f"""
-                            SELECT portfolio_id 
-                            FROM Portfolios 
-                            WHERE portfolio_name='{portfolio_name}' AND epk_id='{self.epk_id}'
-                        """)
-                portfolio_id = cursor.fetchone()[0]
-                self.close()
-                self.Assets = Assets(epk_id=self.epk_id, portfolio_id=portfolio_id)
-                self.Assets.show()
-                pass
-            pass
+        ##-- Active Record
+        portfolio_class = Portfolio()
+        portfolio_class.epk_id = self.epk_id
+        portfolio_class.portfolio_name = self.portfolio_go_dict[self.sender().objectName()]
+        portfolio_id = portfolio_class.get_portfolio_id()
+
+        self.close()
+        self.Assets = Assets(epk_id=self.epk_id, portfolio_id=portfolio_id)
+        self.Assets.show()
         pass
 
     ##-- удаление портфеля по названию
     def del_portfolio(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-
-                portfolio_name = self.portfolio_del_dict[self.sender().objectName()]
-
-                cursor.execute(f"""
-                    DELETE FROM Portfolios WHERE portfolio_name='{portfolio_name}'
-                """)
-                conn.commit()
-                self.close()
-                self.Portfolios = Portfolios(epk_id=self.epk_id)
-                self.Portfolios.show()
+        ##-- Active Record
+        portfolio_class = Portfolio()
+        portfolio_class.portfolio_name = self.portfolio_del_dict[self.sender().objectName()]
+        portfolio_class.delete_portfolio()
+        self.close()
+        self.Portfolios = Portfolios(epk_id=self.epk_id)
+        self.Portfolios.show()
 
     ##-- обновление портфеля по названию
     def update_portfolio(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                ##-- Объектное имя кнопки "Обновить", на которю мы нажимаем
-                portfolio_update_object_name = self.sender().objectName()
-                idx_portfolio = ''.join(filter(str.isdigit, portfolio_update_object_name))
-                ##-- Выводим текст, который отображается в lineEdit у портфеля (после нажатия кнопки обновить)
-                portfolio_new_name = self.findChild(QtWidgets.QLineEdit, f"portfolio_name_{idx_portfolio}").text()
-                ##-- Предыдущее название портфеля (хранится в словаре)
-                portfolio_old_name = self.portfolio_update_dict[self.sender().objectName()]
+        ##-- Active Record
+        portfolio_class = Portfolio()
+        portfolio_class.epk_id = self.epk_id
+        portfolio_class.portfolio_name = self.portfolio_update_dict[self.sender().objectName()]
+        portfolio_id = portfolio_class.get_portfolio_id()
+        portfolio_class.portfolio_id = portfolio_id
+        ##-- Объектное имя кнопки "Обновить", на которю мы нажимаем
+        portfolio_update_object_name = self.sender().objectName()
+        idx_portfolio = ''.join(filter(str.isdigit, portfolio_update_object_name))
+        ##-- Выводим текст, который отображается в lineEdit у портфеля (после нажатия кнопки обновить)
+        portfolio_new_name = self.findChild(QtWidgets.QLineEdit, f"portfolio_name_{idx_portfolio}").text()
+        portfolio_class.update_portfolio_name(portfolio_new_name)
 
-                if portfolio_new_name.strip() != portfolio_old_name.strip():
-                    cursor.execute(f"""
-                        UPDATE Portfolios
-                        SET portfolio_name = '{portfolio_new_name}'
-                        WHERE portfolio_name='{portfolio_old_name}'
-                                AND epk_id='{self.epk_id}'
-                    """)
-                    conn.commit()
-                    self.close()
-                    self.Portfolios = Portfolios(epk_id=self.epk_id)
-                    self.Portfolios.show()
+        ##-- перезапуск формы
+        self.close()
+        self.Portfolios = Portfolios(epk_id=self.epk_id)
+        self.Portfolios.show()
 
     def output_portfolios(self):
-        conn_string = "host='localhost' dbname='postgres' user='a19053183' password=''"
-        with closing(psycopg2.connect(conn_string)) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(f"""
-                    SELECT portfolio_name FROM Users t1 INNER JOIN Portfolios t2 ON (t1.epk_id=t2.epk_id)
-                    WHERE t1.epk_id='{self.epk_id}' 
-                """)
+        ##-- Active Record
+        portfolios_class = Portfolio()
+        portfolios_class.epk_id = self.epk_id
+        portfolios = portfolios_class.get_user_portfolios()
 
-                portfolios = cursor.fetchall()
-                portfolios = [portfolio[0] for portfolio in portfolios]
+        ##-- Вывод портфелей
+        for i, portfolio in enumerate(portfolios):
+            ##-- Названия портфелей
+            self.portfolioEdit = QtWidgets.QLineEdit(self)
+            self.portfolioEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
+            self.portfolioEdit.setStyleSheet("color: rgb(0, 0, 0);")
+            self.portfolioEdit.setObjectName(f"portfolio_name_{i}")
+            self.portfolioEdit.setText(portfolio)
 
-                ##-- Вывод портфелей
-                for i, portfolio in enumerate(portfolios):
-                    ##-- Названия портфелей
-                    # self.label = QtWidgets.QLabel(self)
-                    # self.label.setGeometry(QtCore.QRect(0, 80 + i * 100, 171, 51))
-                    # font = QtGui.QFont()
-                    # font.setPointSize(16)
-                    # self.label.setFont(font)
-                    # self.label.setStyleSheet("color: rgb(0, 0, 0);")
-                    # self.label.setObjectName(f"portfolio_name_{i}")
-                    # self.label.setText(portfolio)
+            ##-- Обновление названий
+            self.portfolio_update = QtWidgets.QPushButton(self)
+            self.portfolio_update.setGeometry(QtCore.QRect(160, 80 + i * 100, 100, 51))
+            font = QtGui.QFont()
+            font.setPointSize(14)
+            self.portfolio_update.setFont(font)
+            self.portfolio_update.setStyleSheet("background-color: rgb(0, 100, 0); text-decoration:underline;")
+            self.portfolio_update.setObjectName(f"portfolio_update_{i}")
+            self.portfolio_update_dict[f"portfolio_update_{i}"] = portfolio
+            self.portfolio_update.setText("Обновить")
+            self.portfolio_update.clicked.connect(self.update_portfolio)
 
-                    ##-- Названия портфелей
-                    self.portfolioEdit = QtWidgets.QLineEdit(self)
-                    self.portfolioEdit.setGeometry(QtCore.QRect(0, 80 + i * 100, 150, 51))
-                    self.portfolioEdit.setStyleSheet("color: rgb(0, 0, 0);")
-                    self.portfolioEdit.setObjectName(f"portfolio_name_{i}")
-                    self.portfolioEdit.setText(portfolio)
-                    # self.portfolioEdit.setEnabled(False)
+            ##-- Переход к портфелям
+            self.portfolio_btn = QtWidgets.QPushButton(self)
+            self.portfolio_btn.setGeometry(QtCore.QRect(270, 80 + i * 100, 171, 51))
+            font = QtGui.QFont()
+            font.setPointSize(14)
+            self.portfolio_btn.setFont(font)
+            self.portfolio_btn.setStyleSheet("background-color: rgb(0, 170, 0); text-decoration:underline;")
+            self.portfolio_btn.setObjectName(f"portfolio_{i}")
+            self.portfolio_go_dict[f"portfolio_{i}"] = portfolio
+            self.portfolio_btn.setText("Перейти")
+            self.portfolio_btn.setFocus()
+            self.portfolio_btn.clicked.connect(self.go_portfolio)
 
-                    ##-- Обновление названий
-                    self.portfolio_update = QtWidgets.QPushButton(self)
-                    self.portfolio_update.setGeometry(QtCore.QRect(160, 80 + i * 100, 100, 51))
-                    font = QtGui.QFont()
-                    font.setPointSize(14)
-                    self.portfolio_update.setFont(font)
-                    self.portfolio_update.setStyleSheet("background-color: rgb(0, 100, 0); text-decoration:underline;")
-                    self.portfolio_update.setObjectName(f"portfolio_update_{i}")
-                    self.portfolio_update_dict[f"portfolio_update_{i}"] = portfolio
-                    self.portfolio_update.setText("Обновить")
-                    self.portfolio_update.clicked.connect(self.update_portfolio)
-
-                    ##-- Переход к портфелям
-                    self.portfolio_btn = QtWidgets.QPushButton(self)
-                    self.portfolio_btn.setGeometry(QtCore.QRect(270, 80 + i * 100, 171, 51))
-                    font = QtGui.QFont()
-                    font.setPointSize(14)
-                    self.portfolio_btn.setFont(font)
-                    self.portfolio_btn.setStyleSheet("background-color: rgb(0, 170, 0); text-decoration:underline;")
-                    self.portfolio_btn.setObjectName(f"portfolio_{i}")
-                    self.portfolio_go_dict[f"portfolio_{i}"] = portfolio
-                    self.portfolio_btn.setText("Перейти")
-                    self.portfolio_btn.setFocus()
-                    self.portfolio_btn.clicked.connect(self.go_portfolio)
-
-                    ##-- Кнопка удаления
-                    self.portfolio_del = QtWidgets.QPushButton(self)
-                    self.portfolio_del.setGeometry(QtCore.QRect(450, 80 + i * 100, 171, 51))
-                    font = QtGui.QFont()
-                    font.setPointSize(14)
-                    self.portfolio_del.setFont(font)
-                    self.portfolio_del.setStyleSheet("background-color: rgb(255, 0, 0); text-decoration:underline;")
-                    self.portfolio_del.setObjectName(f"portfolio_del_{i}")
-                    self.portfolio_del_dict[f"portfolio_del_{i}"] = portfolio
-                    self.portfolio_del.setText("Удалить")
-                    self.portfolio_del.clicked.connect(self.del_portfolio)
-                    pass
-                pass
+            ##-- Кнопка удаления
+            self.portfolio_del = QtWidgets.QPushButton(self)
+            self.portfolio_del.setGeometry(QtCore.QRect(450, 80 + i * 100, 171, 51))
+            font = QtGui.QFont()
+            font.setPointSize(14)
+            self.portfolio_del.setFont(font)
+            self.portfolio_del.setStyleSheet("background-color: rgb(255, 0, 0); text-decoration:underline;")
+            self.portfolio_del.setObjectName(f"portfolio_del_{i}")
+            self.portfolio_del_dict[f"portfolio_del_{i}"] = portfolio
+            self.portfolio_del.setText("Удалить")
+            self.portfolio_del.clicked.connect(self.del_portfolio)
+            pass
         pass
 
     def add(self):
@@ -499,6 +548,10 @@ class Registration(QtWidgets.QDialog):
 
 
 
+
+
+
+##-- Главное окно
 class MainForm(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
