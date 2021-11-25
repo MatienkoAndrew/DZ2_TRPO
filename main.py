@@ -9,6 +9,9 @@ from src.AssetsForm import AssetsForm
 import hashlib
 from peewee import *
 
+from src.ActiveRecord.PortfolioGateway import PortfolioGateway, PortfolioFinder
+from src.ActiveRecord.AssetGateway import AssetGateway, AssetFinder
+from src.ActiveRecord.UserGateway import UserGateway, UserFinder
 
 
 class BaseModel(Model):
@@ -678,6 +681,25 @@ class MainForm(QtWidgets.QDialog):
 
         ##-- Active record
         epk_id = User_class.select_epk_id()
+
+
+        # finder = PortfolioFinder()
+        # PortfolioExampler = finder.Find(1)
+        # PortfolioExampler.portfolio_name = "I change the name"
+        # PortfolioExampler.Update()
+
+        # PortfolioNew = PortfolioGateway()
+        # PortfolioNew.epk_id = 1
+        # PortfolioNew.portfolio_name = 'New portfolio'
+        # PortfolioNew.Insert()
+
+
+
+
+
+
+
+
         ##-- Переход к окну "Портфель"
         self.Portfolio = Portfolios(epk_id=epk_id)
         self.Portfolio.show()
