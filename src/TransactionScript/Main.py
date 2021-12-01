@@ -7,6 +7,17 @@ from src.ActiveRecord.UserGateway import UserGateway, UserFinder
 from src.TransactionScript.Registration import Registration
 from src.TransactionScript.Portfolios import Portfolios
 
+# import operator
+#
+def factorial(n):
+    if n < 0:
+        raise ValueError("Factorial can't be calculated for negative numbers.")
+    if type(n) is float or type(n) is complex:
+        raise TypeError("Factorial doesn't use Gamma function.")
+    if n == 0:
+        return 1
+    return factorial(n - 1)
+
 
 ##-- Business logic
 class User:
@@ -17,12 +28,43 @@ class User:
         pass
 
     def check_user(self):
-        enter_login = self.login
-        password = self.password
-        if enter_login == '' and password == '':
+        if self.login == '' and self.password == '':
             return 'Nothing entered'
-        password_hashed = hashlib.md5(password.encode())
-        password_hashed = password_hashed.hexdigest()
+
+        if self.check_login() == 'Wrong login':
+            return 'Wrong login'
+        elif (self.check_password()) == 'Wrong password':
+            return 'Wrong password'
+        else:
+            return self.check_password()
+        # enter_login = self.login
+        # enter_password = self.password
+        # if enter_login == '' and enter_password == '':
+        #     return 'Nothing entered'
+        # password_hashed = hashlib.md5(enter_password.encode())
+        # password_hashed = password_hashed.hexdigest()
+        #
+        # ##-- Active record
+        # usersFinder = UserFinder()
+        # logins = usersFinder.FindLogins()
+        #
+        # if enter_login not in logins:
+        #     return 'Wrong login'
+        #
+        # ##-- Active record
+        # user = UserFinder().FindPass(enter_login)
+        # password = user.password
+        #
+        # passwords_hashed = hashlib.md5(password.encode()).hexdigest()
+        # if password_hashed not in passwords_hashed:
+        #     return 'Wrong password'
+        #
+        # ##-- Active record
+        # epk_id = user.epk_id
+        # return epk_id
+
+    def check_login(self):
+        enter_login = self.login
 
         ##-- Active record
         usersFinder = UserFinder()
@@ -30,19 +72,24 @@ class User:
 
         if enter_login not in logins:
             return 'Wrong login'
+        return 1
+
+    def check_password(self):
+        enter_login = self.login
+        enter_password = self.password
+        enter_password_hashed = hashlib.md5(enter_password.encode())
+        enter_password_hashed = enter_password_hashed.hexdigest()
 
         ##-- Active record
         user = UserFinder().FindPass(enter_login)
-        password = user.password
+        user_password = user.password
 
-        passwords_hashed = hashlib.md5(password.encode()).hexdigest()
-        if password_hashed not in passwords_hashed:
+        user_password_hashed = hashlib.md5(user_password.encode()).hexdigest()
+        if enter_password_hashed not in user_password_hashed:
             return 'Wrong password'
 
-        ##-- Active record
         epk_id = user.epk_id
         return epk_id
-
 
     def registration(self):
         enter_login = self.login
@@ -97,39 +144,6 @@ class MainForm(QtWidgets.QDialog):
             self.Portfolio = Portfolios(epk_id=res)
             self.Portfolio.show()
             self.close()
-
-        #
-        # enter_login = self.ui.lineEdit.text()
-        # password = self.ui.lineEdit_2.text()
-        # if enter_login == '' and password == '':
-        #     return
-        # password_hashed = hashlib.md5(password.encode())
-        # password_hashed = password_hashed.hexdigest()
-        #
-        # ##-- Active record
-        # Users = UserFinder()
-        # logins = Users.FindLogins()
-        #
-        # if enter_login not in logins:
-        #     QtWidgets.QMessageBox.about(self, "Предупреждение", "Такого логина нет. Необходимо пройти регистрацию")
-        #     return
-        #
-        # ##-- Active record
-        # User = UserFinder().FindPass(enter_login)
-        # password = User.password
-        #
-        # passwords_hashed = hashlib.md5(password.encode()).hexdigest()
-        # if password_hashed not in passwords_hashed:
-        #     QtWidgets.QMessageBox.about(self, "Предупреждение", "Неверный пароль")
-        #     return
-        #
-        # ##-- Active record
-        # epk_id = User.epk_id
-        #
-        ##-- Переход к окну "Портфель"
-        # self.Portfolio = Portfolios(epk_id=epk_id)
-        # self.Portfolio.show()
-        # self.close()
 
     def registration(self):
         self.Registration = Registration()

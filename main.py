@@ -22,47 +22,8 @@ if __name__ == "__main__":
     sys.exit(app.exec_())
 
 
-# CREATE TABLE Users (
-# epk_id SERIAL PRIMARY KEY,
-# login TEXT,
-# pass TEXT
+# CREATE TABLE Pulse (
+# pulse_id SERIAL PRIMARY KEY,
+# entered_pulse INT,
+# good_pulse INT
 # );
-
-
-# CREATE TABLE Portfolios (
-# portfolio_id SERIAL PRIMARY KEY,
-# epk_id INTEGER,
-# portfolio_name TEXT,
-# FOREIGN KEY (epk_id) REFERENCES Users(id)
-# );
-
-
-# CREATE TABLE Assets(
-# asset_id SERIAL PRIMARY KEY,
-# asset_name TEXT,
-# price Decimal(12,2)
-# );
-
-
-# CREATE TABLE Portfolio_to_Assets (
-# id SERIAL PRIMARY KEY,
-# portfolio_id INTEGER,
-# asset_id INTEGER,
-# FOREIGN KEY(portfolio_id) REFERENCES Portfolios (portfolio_id),
-# FOREIGN KEY(asset_id) REFERENCES Assets (asset_id));
-# );
-
-##--
-
-# SELECT *
-# FROM
-#   Users t1
-# INNER JOIN
-#   Portfolios t2
-# ON (t1.epk_id=t2.epk_id)
-# INNER JOIN
-#   Portfolio_to_assets t3
-# ON (t2.portfolio_id=t3.portfolio_id)
-# INNER JOIN
-#   Assets t4
-# ON (t3.asset_id = t4.asset_id);
